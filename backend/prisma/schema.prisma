@@ -1,0 +1,23 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Subscription {
+  id             Int      @id @default(autoincrement())
+
+  service         String
+  subject         String
+
+  price           String?
+
+  trialDetected   Boolean @default(false)
+
+  autoRenew       Boolean @default(false)
+
+  createdAt       DateTime @default(now())
+}
