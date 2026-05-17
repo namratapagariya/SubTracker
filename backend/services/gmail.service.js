@@ -1,5 +1,6 @@
 const { google } = require("googleapis");
 const prisma = require("../prismaClient");
+
 function cleanEmailBody(text) {
 
   // Remove URLs
@@ -47,13 +48,17 @@ async function fetchTrialEmails(accessToken) {
     "trial ends",
     "trial period",
     "subscription begins",
+    "billing",
+    "invoice",
+    "charged",
+    "membership",
   ].join(" OR ");
 
   // Step 1: Get matching message IDs
   const res = await gmail.users.messages.list({
     userId: "me",
     q: query,
-    maxResults: 5,
+    maxResults: 10,
   });
 
   const messages = res.data.messages || [];
@@ -79,19 +84,19 @@ async function fetchTrialEmails(accessToken) {
     const fromHeader = headers.find(
       h => h.name === "From"
     );
+
     // Extract clean service name
-let serviceName = "Unknown";
+    let serviceName = "Unknown";
 
-if (fromHeader?.value) {
+    if (fromHeader?.value) {
 
-  // Remove email part inside <>
-  serviceName = fromHeader.value
-    .split("<")[0]
-    .trim();
+      serviceName = fromHeader.value
+        .split("<")[0]
+        .trim();
 
-  // Remove quotes if present
-  serviceName = serviceName.replace(/"/g, "");
-}
+      serviceName =
+        serviceName.replace(/"/g, "");
+    }
 
     // Try to get plain text body
     let body = "";
@@ -116,43 +121,95 @@ if (fromHeader?.value) {
     }
 
     // Extract price
-    const priceMatch = body.match(/\$\d+(\.\d+)?/);
+    const priceMatch =
+      body.match(/\$\d+(\.\d+)?/);
 
-    // Detect trial
-    const hasTrial = /free trial/i.test(body);
+    // ------------------------
+    // SMARTER SCORING SYSTEM
+    // ------------------------
 
-    // Detect auto renewal
+    let score = 0;
+
+    // Strong indicators
+    if (/charged/i.test(body)) score += 5;
+
+    if (/invoice/i.test(body)) score += 5;
+
+    if (/payment method/i.test(body)) score += 4;
+
+    if (/billing/i.test(body)) score += 4;
+
+    if (/renew/i.test(body)) score += 4;
+
+    if (/membership/i.test(body)) score += 3;
+
+    if (/subscription/i.test(body)) score += 3;
+
+    if (/cancel anytime/i.test(body)) score += 2;
+
+    // Weak indicators
+    if (/free trial/i.test(body)) score += 1;
+
+    if (/trial period/i.test(body)) score += 1;
+
+    // Promotional indicators
+    if (/special offer/i.test(body)) score -= 3;
+
+    if (/limited time/i.test(body)) score -= 3;
+
+    if (/take our poll/i.test(body)) score -= 5;
+
+    if (/support for every sentence/i.test(body)) score -= 4;
+
+    // Final classification
+    const isLikelySubscription =
+      score >= 6;
+
+    // Auto renew detection
     const autoRenew =
       /automatically charge|automatically enrolled/i.test(body);
-    await prisma.subscription.create({
-  data: {
 
-    service: serviceName,
+    // Only save if likely real subscription
+    if (isLikelySubscription) {
 
-    subject:
-      subjectHeader?.value || "No Subject",
+      await prisma.subscription.create({
+        data: {
 
-    price: priceMatch
-      ? priceMatch[0]
-      : null,
+          service: serviceName,
 
-    trialDetected: hasTrial,
+          subject:
+            subjectHeader?.value || "No Subject",
 
-    autoRenew,
-  },
-});
+          price: priceMatch
+            ? priceMatch[0]
+            : null,
+
+          trialDetected:
+            isLikelySubscription,
+
+          autoRenew,
+        },
+      });
+    }
+
     emailDetails.push({
+
       id: msg.id,
-      
+
       service: serviceName,
 
-      subject: subjectHeader?.value || "No Subject",
+      subject:
+        subjectHeader?.value || "No Subject",
 
-      from: fromHeader?.value || "Unknown Sender",
+      from:
+        fromHeader?.value || "Unknown Sender",
 
       snippet: email.data.snippet,
 
-      trialDetected: hasTrial,
+      confidenceScore: score,
+
+      trialDetected:
+        isLikelySubscription,
 
       price: priceMatch
         ? priceMatch[0]

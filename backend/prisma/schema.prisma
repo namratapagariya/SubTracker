@@ -8,16 +8,28 @@ datasource db {
 }
 
 model Subscription {
-  id             Int      @id @default(autoincrement())
+  id             Int       @id @default(autoincrement())
 
-  service         String
-  subject         String
+  gmailMsgId     String    @unique
 
-  price           String?
+  service        String
+  subject        String
 
-  trialDetected   Boolean @default(false)
+  price          String?
 
-  autoRenew       Boolean @default(false)
+  trialEndDate   DateTime?
 
-  createdAt       DateTime @default(now())
+  status         String    @default("active")
+
+  trialDetected  Boolean   @default(false)
+
+  autoRenew      Boolean   @default(false)
+
+  reminderSent   Boolean   @default(false)
+
+  classification String?
+
+  confidence     Int?
+
+  createdAt      DateTime  @default(now())
 }

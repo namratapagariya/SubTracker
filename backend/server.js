@@ -5,7 +5,7 @@ const cors = require("cors");
 const passport = require("passport");
 const session = require("express-session");
 const GoogleStrategy = require("passport-google-oauth20").Strategy;
-
+const prisma = require("./prismaClient");
 const app = express();
 
 app.use(cors());
@@ -64,7 +64,28 @@ app.get("/auth/google/callback",
 );
 
 const PORT = process.env.PORT || 5000;
+app.get("/subscriptions", async (req, res) => {
 
+  try {
+
+    const subscriptions =
+      await prisma.subscription.findMany({
+        orderBy: {
+          createdAt: "desc",
+        },
+      });
+
+    res.json(subscriptions);
+
+  } catch (error) {
+
+    console.error(error);
+
+    res.status(500).json({
+      error: "Failed to fetch subscriptions",
+    });
+  }
+});
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
