@@ -106,25 +106,26 @@ cd frontend && npm run dev
 6. Open `http://localhost:5173` and click **Scan Gmail**
 
 ## Project Structure
+
+```
 SubTracker/
 ├── backend/
 │   ├── services/
 │   │   ├── ai/
-│   │   │   ├── classifier.js
+│   │   │   ├── classifier.js          # Provider router
 │   │   │   └── providers/
-│   │   │       └── geminiProvider.js
-│   │   ├── gmail.service.js
-│   │   └── reminder.service.js
+│   │   │       └── geminiProvider.js  # Gemini integration
+│   │   ├── gmail.service.js           # Gmail API + email parsing
+│   │   └── reminder.service.js        # Cron job + Nodemailer
 │   ├── prisma/
-│   │   └── schema.prisma
-│   ├── server.js
-│   └── prismaClient.js
-├── frontend/
-│   └── src/
-│       ├── App.jsx
-│       └── App.css
-└── README.md
-
+│   │   └── schema.prisma              # Database schema
+│   ├── server.js                      # Express server + OAuth
+│   └── prismaClient.js                # Prisma client
+└── frontend/
+    └── src/
+        ├── App.jsx                    # Dashboard + currency switcher
+        └── App.css                    # Bloomberg glass styling
+```
 ## Features In Detail
 
 **Smart Email Classification**
