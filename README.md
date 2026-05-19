@@ -1,9 +1,6 @@
-
-SubTracker — AI-Powered Subscription Intelligence
+# SubTracker — AI-Powered Subscription Intelligence
 
 > Never get surprise-charged again. SubTracker scans your Gmail, detects active trials and subscriptions using Gemini AI, and alerts you before you get billed.
-
-
 
 ## What It Does
 
@@ -54,7 +51,7 @@ Each email is classified into one of:
 | `PROMOTIONAL_OFFER` | Marketing email — ignored |
 | `NEWSLETTER` | Informational — ignored |
 
-Only real subscriptions are saved to the database. Promotional emails are filtered out automatically.
+Only real subscriptions are saved. Promotional emails are filtered out automatically.
 
 ## Pluggable AI Architecture
 
@@ -73,8 +70,7 @@ const activeProvider = openaiProvider;
 ### Prerequisites
 - Node.js v18+
 - Google Cloud project with Gmail API enabled
-- Gemini API key (free at aistudio.google.com)
-- Gmail account
+- Gemini API key — free at [aistudio.google.com](https://aistudio.google.com)
 
 ### Setup
 
@@ -84,60 +80,30 @@ git clone https://github.com/namratapagariya/SubTracker.git
 cd SubTracker
 ```
 
-2. Install backend dependencies
+2. Install dependencies
 ```bash
-cd backend
-npm install
+cd backend && npm install
+cd ../frontend && npm install
 ```
 
-3. Install frontend dependencies
-```bash
-cd ../frontend
-npm install
-```
+3. Create `backend/.env` using the provided `.env.example` file and fill in your keys
 
-4. Create `backend/.env`
-GOOGLE_CLIENT_ID=your_google_client_id
-GOOGLE_CLIENT_SECRET=your_google_client_secret
-SESSION_SECRET=any_random_string
-DATABASE_URL="file:./dev.db"
-GEMINI_API_KEY=your_gemini_api_key
-SENDER_EMAIL=your_gmail@gmail.com
-SENDER_PASS=your_gmail_app_password
-PORT=5000
-
-5. Run database migration
+4. Run database migration
 ```bash
 cd backend
 npx prisma migrate dev --name init
 ```
 
-6. Start backend
+5. Start the app
 ```bash
-node server.js
+# Terminal 1 — backend
+cd backend && node server.js
+
+# Terminal 2 — frontend
+cd frontend && npm run dev
 ```
 
-7. Start frontend
-```bash
-cd frontend
-npm run dev
-```
-
-8. Open `http://localhost:5173` and click **Scan Gmail**
-
-## Features In Detail
-
-### Smart Email Classification
-Uses Gemini AI to understand email context — distinguishes between "Start your free trial" (promotional) and "Your trial has started" (active trial). Confidence score included with every classification.
-
-### Duplicate Prevention
-Uses Gmail message ID as unique key — rescanning never creates duplicate entries.
-
-### Currency Switching
-Live conversion between USD, INR, and GBP on the dashboard. All prices update instantly including monthly total.
-
-### Automated Reminders
-Cron job runs daily at 9 AM. Sends email warning 3 days before any trial expires. `reminderSent` flag prevents duplicate notifications.
+6. Open `http://localhost:5173` and click **Scan Gmail**
 
 ## Project Structure
 SubTracker/
@@ -159,6 +125,20 @@ SubTracker/
 │       └── App.css
 └── README.md
 
+## Features In Detail
+
+**Smart Email Classification**
+Gemini AI understands email context — distinguishes between "Start your free trial" (promotional) and "Your trial has started" (active trial). Confidence score included with every classification.
+
+**Duplicate Prevention**
+Uses Gmail message ID as unique key — rescanning never creates duplicate entries.
+
+**Currency Switching**
+Live conversion between USD, INR, and GBP. All prices update instantly including monthly total.
+
+**Automated Reminders**
+Cron job runs daily at 9 AM. Sends email warning 3 days before any trial expires. reminderSent flag prevents duplicate notifications.
+
 ## Roadmap
 
 - [ ] Deploy to Railway + Vercel
@@ -174,4 +154,3 @@ SubTracker/
 ---
 
 Built by [Namrata Pagariya](https://github.com/namratapagariya)
-
