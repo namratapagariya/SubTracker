@@ -1,11 +1,13 @@
 require("dotenv").config();
 const fetchTrialEmails = require("./services/gmail.service");
+const startReminderCron = require("./services/reminder.service");
 const express = require("express");
 const cors = require("cors");
 const passport = require("passport");
 const session = require("express-session");
 const GoogleStrategy = require("passport-google-oauth20").Strategy;
 const prisma = require("./prismaClient");
+
 const app = express();
 
 app.use(cors());
@@ -26,13 +28,8 @@ passport.use(new GoogleStrategy({
   },
   async (accessToken, refreshToken, profile, done) => {
     const emails = await fetchTrialEmails(accessToken);
-
-console.log(emails);
-
-return done(null, {
-  profile,
-  emails,
-});
+    console.log(emails);
+    return done(null, { profile, emails });
   }
 ));
 
@@ -50,7 +47,11 @@ app.get("/", (req, res) => {
 
 app.get("/auth/google",
   passport.authenticate("google", {
-    scope: ["profile", "email","https://www.googleapis.com/auth/gmail.readonly"]
+    scope: [
+      "profile",
+      "email",
+      "https://www.googleapis.com/auth/gmail.readonly"
+    ]
   })
 );
 
@@ -59,33 +60,25 @@ app.get("/auth/google/callback",
     failureRedirect: "/"
   }),
   (req, res) => {
-  res.redirect("http://localhost:5173");
-}
+    res.redirect("http://localhost:5173");
+  }
 );
 
-const PORT = process.env.PORT || 5000;
 app.get("/subscriptions", async (req, res) => {
-
   try {
-
-    const subscriptions =
-      await prisma.subscription.findMany({
-        orderBy: {
-          createdAt: "desc",
-        },
-      });
-
-    res.json(subscriptions);
-
-  } catch (error) {
-
-    console.error(error);
-
-    res.status(500).json({
-      error: "Failed to fetch subscriptions",
+    const subscriptions = await prisma.subscription.findMany({
+      orderBy: { createdAt: "desc" },
     });
+    res.json(subscriptions);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Failed to fetch subscriptions" });
   }
 });
+
+const PORT = process.env.PORT || 5000;
+
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
+  startReminderCron();
 });
