@@ -59,8 +59,8 @@ app.get("/auth/google/callback",
     failureRedirect: "/"
   }),
   (req, res) => {
-    res.send("Google login successful");
-  }
+  res.redirect("http://localhost:5173");
+}
 );
 
 const PORT = process.env.PORT || 5000;
