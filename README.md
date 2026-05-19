@@ -1,9 +1,9 @@
 
-markdown# SubTracker — AI-Powered Subscription Intelligence
+SubTracker — AI-Powered Subscription Intelligence
 
 > Never get surprise-charged again. SubTracker scans your Gmail, detects active trials and subscriptions using Gemini AI, and alerts you before you get billed.
 
-![SubTracker Dashboard](./screenshots/dashboard.png)
+
 
 ## What It Does
 
@@ -174,4 +174,4 @@ SubTracker/
 ---
 
 Built by [Namrata Pagariya](https://github.com/namratapagariya)
-Paste this into your README.md. Then commit:
+
