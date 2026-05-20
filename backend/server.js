@@ -10,7 +10,10 @@ const prisma = require("./prismaClient");
 
 const app = express();
 
-app.use(cors());
+app.use(cors({
+  origin: "http://localhost:5173",
+  credentials: true,
+}));
 
 app.use(session({
   secret: process.env.SESSION_SECRET,
@@ -27,9 +30,15 @@ passport.use(new GoogleStrategy({
     callbackURL: "http://localhost:5000/auth/google/callback",
   },
   async (accessToken, refreshToken, profile, done) => {
-    const emails = await fetchTrialEmails(accessToken);
-    console.log(emails);
-    return done(null, { profile, emails });
+    // Don't await — scan in background
+    // Redirect happens immediately
+    fetchTrialEmails(accessToken).then(emails => {
+      console.log(emails);
+    }).catch(err => {
+      console.error("Scan error:", err);
+    });
+
+    return done(null, { profile });
   }
 ));
 
@@ -47,11 +56,9 @@ app.get("/", (req, res) => {
 
 app.get("/auth/google",
   passport.authenticate("google", {
-    scope: [
-      "profile",
-      "email",
-      "https://www.googleapis.com/auth/gmail.readonly"
-    ]
+    scope: ["profile", "email", "https://www.googleapis.com/auth/gmail.readonly"],
+    accessType: "offline",
+    prompt: "consent",
   })
 );
 
