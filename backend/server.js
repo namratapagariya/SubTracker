@@ -114,7 +114,11 @@ app.get("/auth/google/callback",
     failureRedirect: "/"
   }),
   (req, res) => {
-    res.redirect("http://localhost:5173?scanned=true");
+    res.redirect(
+  process.env.FRONTEND_URL 
+    ? `${process.env.FRONTEND_URL}?scanned=true`
+    : "http://localhost:5173?scanned=true"
+);
   }
 );
 
