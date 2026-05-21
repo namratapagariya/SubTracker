@@ -10,6 +10,9 @@ const prisma = require("./prismaClient");
 
 const app = express();
 
+// Track scanning status per user
+let scanningStatus = {};
+
 app.use(cors({
   origin: "http://localhost:5173",
   credentials: true,
@@ -30,15 +33,34 @@ passport.use(new GoogleStrategy({
     callbackURL: "http://localhost:5000/auth/google/callback",
   },
   async (accessToken, refreshToken, profile, done) => {
-    // Don't await — scan in background
-    // Redirect happens immediately
-    fetchTrialEmails(accessToken).then(emails => {
-      console.log(emails);
-    }).catch(err => {
-      console.error("Scan error:", err);
+
+    // Save or update user in database
+    const user = await prisma.user.upsert({
+      where: { id: profile.id },
+      update: {
+        name: profile.displayName,
+        email: profile.emails?.[0]?.value || "",
+      },
+      create: {
+        id: profile.id,
+        name: profile.displayName,
+        email: profile.emails?.[0]?.value || "",
+      },
     });
 
-    return done(null, { profile });
+    // Mark scanning as started
+    scanningStatus[user.id] = true;
+
+    // Scan runs in background — redirect happens immediately
+    fetchTrialEmails(accessToken, user.id).then(emails => {
+      console.log(emails);
+      scanningStatus[user.id] = false;
+    }).catch(err => {
+      console.error("Scan error:", err);
+      scanningStatus[user.id] = false;
+    });
+
+    return done(null, { profile, userId: user.id });
   }
 ));
 
@@ -54,9 +76,32 @@ app.get("/", (req, res) => {
   res.send("Server running");
 });
 
+// Returns scanning status for logged in user
+app.get("/scan-status", (req, res) => {
+  if (!req.user) return res.json({ scanning: false });
+  const userId = req.user.profile.id;
+  res.json({ scanning: scanningStatus[userId] || false });
+});
+
+// Returns logged in user's name and email
+app.get("/me", (req, res) => {
+  if (req.user) {
+    res.json({
+      name: req.user.profile.displayName,
+      email: req.user.profile.emails?.[0]?.value,
+    });
+  } else {
+    res.json({ name: null, email: null });
+  }
+});
+
 app.get("/auth/google",
   passport.authenticate("google", {
-    scope: ["profile", "email", "https://www.googleapis.com/auth/gmail.readonly"],
+    scope: [
+      "profile",
+      "email",
+      "https://www.googleapis.com/auth/gmail.readonly"
+    ],
     accessType: "offline",
     prompt: "consent",
   })
@@ -67,19 +112,36 @@ app.get("/auth/google/callback",
     failureRedirect: "/"
   }),
   (req, res) => {
-    res.redirect("http://localhost:5173");
+    res.redirect("http://localhost:5173?scanned=true");
   }
 );
 
+// Only returns subscriptions for the logged in user
 app.get("/subscriptions", async (req, res) => {
   try {
+    if (!req.user) return res.json([]);
     const subscriptions = await prisma.subscription.findMany({
+      where: { userId: req.user.profile.id },
       orderBy: { createdAt: "desc" },
     });
     res.json(subscriptions);
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "Failed to fetch subscriptions" });
+  }
+});
+
+// Only clears subscriptions for the logged in user
+app.delete("/subscriptions/clear", async (req, res) => {
+  try {
+    if (!req.user) return res.status(401).json({ error: "Not logged in" });
+    await prisma.subscription.deleteMany({
+      where: { userId: req.user.profile.id },
+    });
+    res.json({ success: true });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Failed to clear" });
   }
 });
 

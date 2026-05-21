@@ -9,7 +9,7 @@ async function classify(body, senderName) {
 
     try {
       const model = genAI.getGenerativeModel({
-        model: "gemini-2.5-flash",
+        model: "gemini-2.0-flash",
         generationConfig: {
           responseMimeType: "application/json",
         },
@@ -26,11 +26,12 @@ ${body.slice(0, 3000)}
 
 Classify this email into ONE category:
 - PROMOTIONAL_OFFER = user is being invited to try something, marketing email
-- ACTIVE_TRIAL = user has already started a trial
+- - ACTIVE_TRIAL = user has ALREADY started a trial AND email confirms it with specific dates or account details. NOT marketing or welcome emails.
 - ACTIVE_SUBSCRIPTION = user is actively subscribed or billed
 - BILLING_NOTICE = invoice, payment due, payment reminder
 - NEWSLETTER = informational content, no subscription action
 - UNKNOWN = cannot determine
+- IMPORTANT: If the email is a welcome/onboarding email without billing details, classify as PROMOTIONAL_OFFER not ACTIVE_TRIAL.
 
 Also extract:
 - serviceName: the product or service name (e.g. "Notion", "Netflix")

@@ -9,19 +9,18 @@ function cleanEmailBody(text) {
   return text.trim();
 }
 
-async function fetchTrialEmails(accessToken) {
+async function fetchTrialEmails(accessToken, userId) {
 
   const auth = new google.auth.OAuth2();
   auth.setCredentials({ access_token: accessToken });
   const gmail = google.gmail({ version: "v1", auth });
 
-  // Cast widest possible net — Gemini filters what's real
   const query = "unsubscribe";
 
   const res = await gmail.users.messages.list({
     userId: "me",
     q: query,
-    maxResults: 20,
+    maxResults: 5,
   });
 
   const messages = res.data.messages || [];
@@ -50,14 +49,9 @@ async function fetchTrialEmails(accessToken) {
     const parts = email.data.payload.parts;
 
     if (parts) {
-      const textPart = parts.find(
-        part => part.mimeType === "text/plain"
-      );
+      const textPart = parts.find(part => part.mimeType === "text/plain");
       if (textPart?.body?.data) {
-        body = Buffer.from(
-          textPart.body.data,
-          "base64"
-        ).toString("utf-8");
+        body = Buffer.from(textPart.body.data, "base64").toString("utf-8");
         body = cleanEmailBody(body);
       }
     }
@@ -86,12 +80,12 @@ async function fetchTrialEmails(accessToken) {
           trialEndDate: aiResult.trialEndDate
             ? new Date(aiResult.trialEndDate)
             : null,
-          trialDetected:
-            aiResult.classification === "ACTIVE_TRIAL",
+          trialDetected: aiResult.classification === "ACTIVE_TRIAL",
           autoRenew: aiResult.autoRenew || false,
           classification: aiResult.classification,
           confidence: aiResult.confidence || 0,
           status: "active",
+          userId,
         },
       });
     }
@@ -109,7 +103,6 @@ async function fetchTrialEmails(accessToken) {
       saved: shouldSave,
     });
 
-    // Wait 500ms between calls to avoid rate limiting
     await new Promise(resolve => setTimeout(resolve, 500));
   }
 

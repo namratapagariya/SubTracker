@@ -7,29 +7,28 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model User {
+  id            String         @id
+  email         String         @unique
+  name          String
+  subscriptions Subscription[]
+  createdAt     DateTime       @default(now())
+}
+
 model Subscription {
   id             Int       @id @default(autoincrement())
-
   gmailMsgId     String    @unique
-
   service        String
   subject        String
-
   price          String?
-
   trialEndDate   DateTime?
-
   status         String    @default("active")
-
   trialDetected  Boolean   @default(false)
-
   autoRenew      Boolean   @default(false)
-
   reminderSent   Boolean   @default(false)
-
   classification String?
-
   confidence     Int?
-
+  userId         String
+  user           User      @relation(fields: [userId], references: [id])
   createdAt      DateTime  @default(now())
 }
