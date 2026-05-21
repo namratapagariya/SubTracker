@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: subtracker-backend
+    env: node
+    buildCommand: npm install && npx prisma generate && npx prisma migrate deploy
+    startCommand: node server.js
+    envVars:
+      - key: NODE_ENV
+        value: production

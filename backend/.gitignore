@@ -1,8 +1,10 @@
 node_modules
 .env
 dev.db
-.prisma
+prisma/dev.db
+*.db
+clearDb.js
+seedTest.js
 testClassifier.js
 testReminder.js
 listModels.js
-seedTest.js
