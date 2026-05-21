@@ -1,13 +1,14 @@
 import { useEffect, useState, useRef } from "react";
 import "./App.css";
 
+const API = import.meta.env.VITE_API_URL || "http://localhost:5000";
+
 const DEFAULT_RATES = {
   USD: { symbol: "$", rate: 1, label: "USD — Dollar" },
   INR: { symbol: "₹", rate: 96.5, label: "INR — Rupee" },
   GBP: { symbol: "£", rate: 0.79, label: "GBP — Pound" },
 };
 
-// Direct cancel URLs for known services
 const CANCEL_URLS = {
   "Netflix": "https://www.netflix.com/cancelplan",
   "Spotify": "https://www.spotify.com/account/subscription/cancel",
@@ -172,7 +173,6 @@ function SpendTrendsPage({ subscriptions, currency, currencies }) {
   const c = currencies[currency];
   const services = subscriptions.filter(s => s.price).map((s) => ({
     name: s.service,
-    usd: extractUSD(s.price),
     converted: extractUSD(s.price) * c.rate,
   }));
   const total = services.reduce((a, b) => a + b.converted, 0);
@@ -355,7 +355,7 @@ function SettingsPage() {
             <div className="settings-title">AI Provider</div>
             <div className="settings-sub">Model used for email classification</div>
           </div>
-          <div className="settings-val orange">Gemini 2.5 Flash</div>
+          <div className="settings-val orange">Groq — LLaMA 3.3</div>
         </div>
       </div>
       <div className="settings-group">
@@ -363,11 +363,11 @@ function SettingsPage() {
         <div className="settings-item">
           <div>
             <div className="settings-title">Clear All Data</div>
-            <div className="settings-sub">Remove all detected subscriptions from database</div>
+            <div className="settings-sub">Remove all your detected subscriptions</div>
           </div>
           <button className="danger-btn" onClick={() => {
-            if (window.confirm("Are you sure? This will delete all subscriptions.")) {
-              fetch("http://localhost:5000/subscriptions/clear", { method: "DELETE", credentials: "include" })
+            if (window.confirm("Are you sure? This will delete all your subscriptions.")) {
+              fetch(`${API}/subscriptions/clear`, { method: "DELETE", credentials: "include" })
                 .then(() => window.location.reload())
                 .catch(err => console.error(err));
             }
@@ -389,7 +389,6 @@ function App() {
   const [isPolling, setIsPolling] = useState(false);
   const [userName, setUserName] = useState("User");
 
-  // Live clock
   useEffect(() => {
     function updateTime() {
       const now = new Date();
@@ -402,7 +401,6 @@ function App() {
     return () => clearInterval(interval);
   }, []);
 
-  // Live exchange rates
   useEffect(() => {
     fetch("https://open.er-api.com/v6/latest/USD")
       .then(res => res.json())
@@ -413,56 +411,51 @@ function App() {
           GBP: { symbol: "£", rate: data.rates.GBP, label: "GBP — Pound" },
         });
       })
-      .catch(() => console.log("Using fallback exchange rates"));
+      .catch(() => {});
   }, []);
 
-  // Fetch logged in user name
   useEffect(() => {
-    fetch("http://localhost:5000/me", { credentials: "include" })
+    fetch(`${API}/me`, { credentials: "include" })
       .then(res => res.json())
       .then(data => { if (data.name) setUserName(data.name); })
       .catch(() => {});
   }, []);
 
-  // Fetch subscriptions + poll if just scanned
-useEffect(() => {
-  fetchSubscriptions();
-  const justScanned = window.location.search.includes("scanned");
-  if (justScanned) {
-    setIsPolling(true);
-    let prevCount = 0;
-    let stableCount = 0;
-
-    const interval = setInterval(() => {
-      fetchSubscriptions();
-      const currentCount = subscriptions.length;
-      if (currentCount === prevCount) {
-        stableCount++;
-        if (stableCount >= 3) {
+  useEffect(() => {
+    fetchSubscriptions();
+    const justScanned = window.location.search.includes("scanned");
+    if (justScanned) {
+      setIsPolling(true);
+      window.history.replaceState({}, "", "/");
+      const interval = setInterval(async () => {
+        try {
+          const res = await fetch(`${API}/scan-status`, { credentials: "include" });
+          const data = await res.json();
+          fetchSubscriptions();
+          if (!data.scanning) {
+            clearInterval(interval);
+            setIsPolling(false);
+          }
+        } catch {
           clearInterval(interval);
           setIsPolling(false);
         }
-      } else {
-        stableCount = 0;
-        prevCount = currentCount;
-      }
-    }, 3000);
-
-    setTimeout(() => {
-      clearInterval(interval);
-      setIsPolling(false);
-    }, 60000);
-  }
-}, []);
+      }, 2000);
+      setTimeout(() => { clearInterval(interval); setIsPolling(false); }, 180000);
+    }
+  }, []);
 
   function fetchSubscriptions() {
-    fetch("http://localhost:5000/subscriptions", { credentials: "include" })
+    fetch(`${API}/subscriptions`, { credentials: "include" })
       .then(res => res.json())
       .then(data => setSubscriptions(data))
       .catch(err => console.error("Failed to fetch:", err));
   }
 
-  function handleScan() { setScanning(true); window.location.href = "http://localhost:5000/auth/google"; }
+  function handleScan() {
+    setScanning(true);
+    window.location.href = `${API}/auth/google`;
+  }
 
   const c = currencies[currency];
   const totalUSD = subscriptions.reduce((acc, sub) => acc + extractUSD(sub.price), 0);
