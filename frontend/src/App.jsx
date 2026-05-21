@@ -507,8 +507,11 @@ function App() {
           <div className="status-row"><span className="status-label">Status</span><span className="status-val" style={{ color: isPolling ? "rgba(255,165,0,0.8)" : "rgba(0,255,136,0.6)" }}>{isPolling ? "⟳ Scanning..." : "Live"}</span></div>
           <div className="status-row"><span className="status-label">Auto-scan</span><span className="status-val dim">Off</span></div>
         </div>
-        <button className="scan-btn" onClick={handleScan} disabled={scanning}>◎ {scanning ? "SCANNING..." : "SCAN GMAIL"}</button>
-      </aside>
+        {subscriptions.length === 0 && !isPolling && (
+  <button className="scan-btn" onClick={handleScan} disabled={scanning}>
+    ◎ {scanning ? "SCANNING..." : "SCAN GMAIL"}
+  </button>
+)}</aside>
 
       <main className="main">
         <div className="top-bar">
