@@ -671,3 +671,65 @@ body {
 .red { color: #FF5555; }
 .green { color: rgba(0,255,136,0.7); }
 .orange { color: #FFA500; }
+/* ── WELCOME STATE ── */
+.welcome-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 60px 40px;
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 12px;
+  background: rgba(255,255,255,0.02);
+  margin-top: 20px;
+}
+
+.welcome-icon {
+  font-size: 48px;
+  margin-bottom: 20px;
+}
+
+.welcome-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.85);
+  margin-bottom: 12px;
+  line-height: 1.5;
+}
+
+.welcome-sub {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  color: rgba(255,255,255,0.3);
+  margin-bottom: 28px;
+  line-height: 2;
+  max-width: 400px;
+}
+
+.welcome-scan-btn {
+  background: rgba(255,140,0,0.12);
+  color: #FFA500;
+  border: 1px solid rgba(255,140,0,0.3);
+  border-radius: 8px;
+  padding: 14px 32px;
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  cursor: pointer;
+  margin-bottom: 16px;
+  transition: all 0.2s;
+}
+
+.welcome-scan-btn:hover {
+  background: rgba(255,140,0,0.22);
+  border-color: rgba(255,140,0,0.5);
+}
+
+.welcome-note {
+  font-family: 'DM Mono', monospace;
+  font-size: 8px;
+  color: rgba(255,255,255,0.15);
+  letter-spacing: 0.5px;
+}

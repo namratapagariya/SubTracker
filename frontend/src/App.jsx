@@ -545,13 +545,25 @@ function App() {
               <div className="th">Service</div><div className="th">Status</div><div className="th">Price</div>
               <div className="th">Days</div><div className="th">Conf.</div><div className="th">Action</div>
             </div>
-            {subscriptions.length === 0 && (
-              <div className="empty-state">
-                <div className="empty-icon">◎</div>
-                <div className="empty-title">{isPolling ? "Scanning your Gmail..." : "No subscriptions detected"}</div>
-                <div className="empty-sub">{isPolling ? "New subscriptions will appear automatically" : "Click Scan Gmail to scan your inbox"}</div>
-              </div>
-            )}
+           {subscriptions.length === 0 && !isPolling && (
+  <div className="welcome-state">
+    <div className="welcome-icon">📬</div>
+    <div className="welcome-title">Oh! Forgot which subscriptions you have?</div>
+    <div className="welcome-sub">Let's scan your emails and find out — before you get charged for something you forgot about.</div>
+    <button className="welcome-scan-btn" onClick={handleScan} disabled={scanning}>
+      {scanning ? "◎ Scanning..." : "⚔ Scan My Gmail"}
+    </button>
+    <div className="welcome-note">We only read emails. Nothing is stored without your permission.</div>
+  </div>
+)}
+
+{subscriptions.length === 0 && isPolling && (
+  <div className="empty-state">
+    <div className="empty-icon">◎</div>
+    <div className="empty-title">Scanning your Gmail...</div>
+    <div className="empty-sub">New subscriptions will appear automatically</div>
+  </div>
+)}
             {subscriptions.map(sub => {
               const daysLeft = getDaysLeft(sub.trialEndDate);
               const price = convertPrice(sub.price, currency, currencies);
