@@ -1,18 +1,41 @@
 import { useEffect, useState, useRef } from "react";
 import "./App.css";
 
-const CURRENCIES = {
+const DEFAULT_RATES = {
   USD: { symbol: "$", rate: 1, label: "USD — Dollar" },
-  INR: { symbol: "₹", rate: 83, label: "INR — Rupee" },
+  INR: { symbol: "₹", rate: 96.5, label: "INR — Rupee" },
   GBP: { symbol: "£", rate: 0.79, label: "GBP — Pound" },
 };
 
-function convertPrice(priceStr, currency) {
+// Direct cancel URLs for known services
+const CANCEL_URLS = {
+  "Netflix": "https://www.netflix.com/cancelplan",
+  "Spotify": "https://www.spotify.com/account/subscription/cancel",
+  "Spotify Premium": "https://www.spotify.com/account/subscription/cancel",
+  "Notion": "https://www.notion.so/profile/billing",
+  "Canva": "https://www.canva.com/settings/purchase-history",
+  "Adobe": "https://account.adobe.com/plans",
+  "Amazon": "https://www.amazon.com/mc/pipelines/cancellation",
+  "YouTube Premium": "https://www.youtube.com/paid_memberships",
+  "Google One": "https://one.google.com/storage",
+  "LinkedIn Premium": "https://www.linkedin.com/premium/products/",
+  "Grammarly": "https://account.grammarly.com/subscription",
+};
+
+function getCancelUrl(serviceName) {
+  if (!serviceName) return null;
+  const key = Object.keys(CANCEL_URLS).find(k =>
+    serviceName.toLowerCase().includes(k.toLowerCase())
+  );
+  return key ? CANCEL_URLS[key] : null;
+}
+
+function convertPrice(priceStr, currency, currencies) {
   if (!priceStr) return null;
   const match = priceStr.match(/[\d.]+/);
   if (!match) return priceStr;
   const usd = parseFloat(match[0]);
-  const c = CURRENCIES[currency];
+  const c = currencies[currency];
   const converted = (usd * c.rate).toFixed(currency === "INR" ? 0 : 2);
   return c.symbol + converted + "/mo";
 }
@@ -41,7 +64,7 @@ function Badge({ type }) {
   return <span className={`badge ${b.cls}`}>{b.label}</span>;
 }
 
-function CurrencyDropdown({ currency, onChange }) {
+function CurrencyDropdown({ currency, onChange, currencies }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
   useEffect(() => {
@@ -54,12 +77,12 @@ function CurrencyDropdown({ currency, onChange }) {
   return (
     <div className="currency-wrap" ref={ref}>
       <div className="currency-trigger" onClick={() => setOpen(!open)}>
-        <span>{CURRENCIES[currency].symbol} {currency}</span>
+        <span>{currencies[currency].symbol} {currency}</span>
         <span className="chevron">▾</span>
       </div>
       {open && (
         <div className="currency-dropdown">
-          {Object.entries(CURRENCIES).map(([code, c]) => (
+          {Object.entries(currencies).map(([code, c]) => (
             <div key={code} className={`curr-opt ${currency === code ? "selected" : ""}`}
               onClick={() => { onChange(code); setOpen(false); }}>
               <span className="curr-symbol">{c.symbol}</span>{c.label}
@@ -71,7 +94,21 @@ function CurrencyDropdown({ currency, onChange }) {
   );
 }
 
-function AlertsPage({ subscriptions, currency }) {
+function CancelButton({ serviceName }) {
+  const directUrl = getCancelUrl(serviceName);
+  return (
+    <button className="cancel-btn" onClick={() =>
+      window.open(
+        directUrl || `https://www.google.com/search?q=cancel+${serviceName}+subscription`,
+        "_blank"
+      )
+    }>
+      {directUrl ? "Cancel" : "Cancel ↗"}
+    </button>
+  );
+}
+
+function AlertsPage({ subscriptions, currency, currencies }) {
   const expiring = subscriptions.filter(s => {
     const d = getDaysLeft(s.trialEndDate);
     return d !== null && d <= 7 && d >= 0;
@@ -96,10 +133,8 @@ function AlertsPage({ subscriptions, currency }) {
                   <div className="alert-msg">Trial expires in <span className="red">{d} day{d !== 1 ? "s" : ""}</span></div>
                 </div>
                 <div className="alert-right">
-                  <div className="alert-price">{convertPrice(sub.price, currency) || "—"}</div>
-                  <button className="cancel-btn" onClick={() =>
-                    window.open(`https://www.google.com/search?q=cancel+${sub.service}+subscription`, "_blank")
-                  }>Cancel</button>
+                  <div className="alert-price">{convertPrice(sub.price, currency, currencies) || "—"}</div>
+                  <CancelButton serviceName={sub.service} />
                 </div>
               </div>
             );
@@ -121,10 +156,8 @@ function AlertsPage({ subscriptions, currency }) {
                 <div className="alert-msg">Will automatically renew</div>
               </div>
               <div className="alert-right">
-                <div className="alert-price">{convertPrice(sub.price, currency) || "—"}</div>
-                <button className="cancel-btn" onClick={() =>
-                  window.open(`https://www.google.com/search?q=cancel+${sub.service}+subscription`, "_blank")
-                }>Cancel</button>
+                <div className="alert-price">{convertPrice(sub.price, currency, currencies) || "—"}</div>
+                <CancelButton serviceName={sub.service} />
               </div>
             </div>
           ))
@@ -134,10 +167,10 @@ function AlertsPage({ subscriptions, currency }) {
   );
 }
 
-function SpendTrendsPage({ subscriptions, currency }) {
+function SpendTrendsPage({ subscriptions, currency, currencies }) {
   const [chartType, setChartType] = useState("bar");
-  const c = CURRENCIES[currency];
-  const services = subscriptions.filter(s => s.price).map((s, i) => ({
+  const c = currencies[currency];
+  const services = subscriptions.filter(s => s.price).map((s) => ({
     name: s.service,
     usd: extractUSD(s.price),
     converted: extractUSD(s.price) * c.rate,
@@ -332,7 +365,13 @@ function SettingsPage() {
             <div className="settings-title">Clear All Data</div>
             <div className="settings-sub">Remove all detected subscriptions from database</div>
           </div>
-          <button className="danger-btn">Clear Data</button>
+          <button className="danger-btn" onClick={() => {
+            if (window.confirm("Are you sure? This will delete all subscriptions.")) {
+              fetch("http://localhost:5000/subscriptions/clear", { method: "DELETE", credentials: "include" })
+                .then(() => window.location.reload())
+                .catch(err => console.error(err));
+            }
+          }}>Clear Data</button>
         </div>
       </div>
       <button className="save-btn" onClick={handleSave}>{saved ? "✓ Saved" : "Save Settings"}</button>
@@ -342,12 +381,15 @@ function SettingsPage() {
 
 function App() {
   const [subscriptions, setSubscriptions] = useState([]);
+  const [currencies, setCurrencies] = useState(DEFAULT_RATES);
   const [currency, setCurrency] = useState("USD");
   const [scanning, setScanning] = useState(false);
   const [time, setTime] = useState("");
   const [page, setPage] = useState("overview");
   const [isPolling, setIsPolling] = useState(false);
+  const [userName, setUserName] = useState("User");
 
+  // Live clock
   useEffect(() => {
     function updateTime() {
       const now = new Date();
@@ -360,18 +402,61 @@ function App() {
     return () => clearInterval(interval);
   }, []);
 
+  // Live exchange rates
   useEffect(() => {
-    fetchSubscriptions();
-    const justScanned = window.location.search.includes("scanned");
-    if (justScanned) {
-      setIsPolling(true);
-      const interval = setInterval(fetchSubscriptions, 3000);
-      setTimeout(() => { clearInterval(interval); setIsPolling(false); }, 60000);
-    }
+    fetch("https://open.er-api.com/v6/latest/USD")
+      .then(res => res.json())
+      .then(data => {
+        setCurrencies({
+          USD: { symbol: "$", rate: 1, label: "USD — Dollar" },
+          INR: { symbol: "₹", rate: data.rates.INR, label: "INR — Rupee" },
+          GBP: { symbol: "£", rate: data.rates.GBP, label: "GBP — Pound" },
+        });
+      })
+      .catch(() => console.log("Using fallback exchange rates"));
   }, []);
 
+  // Fetch logged in user name
+  useEffect(() => {
+    fetch("http://localhost:5000/me", { credentials: "include" })
+      .then(res => res.json())
+      .then(data => { if (data.name) setUserName(data.name); })
+      .catch(() => {});
+  }, []);
+
+  // Fetch subscriptions + poll if just scanned
+useEffect(() => {
+  fetchSubscriptions();
+  const justScanned = window.location.search.includes("scanned");
+  if (justScanned) {
+    setIsPolling(true);
+    let prevCount = 0;
+    let stableCount = 0;
+
+    const interval = setInterval(() => {
+      fetchSubscriptions();
+      const currentCount = subscriptions.length;
+      if (currentCount === prevCount) {
+        stableCount++;
+        if (stableCount >= 3) {
+          clearInterval(interval);
+          setIsPolling(false);
+        }
+      } else {
+        stableCount = 0;
+        prevCount = currentCount;
+      }
+    }, 3000);
+
+    setTimeout(() => {
+      clearInterval(interval);
+      setIsPolling(false);
+    }, 60000);
+  }
+}, []);
+
   function fetchSubscriptions() {
-    fetch("http://localhost:5000/subscriptions")
+    fetch("http://localhost:5000/subscriptions", { credentials: "include" })
       .then(res => res.json())
       .then(data => setSubscriptions(data))
       .catch(err => console.error("Failed to fetch:", err));
@@ -379,7 +464,7 @@ function App() {
 
   function handleScan() { setScanning(true); window.location.href = "http://localhost:5000/auth/google"; }
 
-  const c = CURRENCIES[currency];
+  const c = currencies[currency];
   const totalUSD = subscriptions.reduce((acc, sub) => acc + extractUSD(sub.price), 0);
   const totalConverted = (totalUSD * c.rate).toFixed(currency === "INR" ? 0 : 2);
   const trials = subscriptions.filter(s => s.trialDetected).length;
@@ -398,8 +483,11 @@ function App() {
           <div className="logo-tagline">// subscription intelligence</div>
         </div>
         <div className="user-block">
-          <div className="user-avatar">N</div>
-          <div><div className="user-name">Namrata</div><div className="user-role">FREE TIER</div></div>
+          <div className="user-avatar">{userName.charAt(0).toUpperCase()}</div>
+          <div>
+            <div className="user-name">{userName}</div>
+            <div className="user-role">FREE TIER</div>
+          </div>
         </div>
         <nav className="nav-body">
           <div className="nav-group-label">Monitor</div>
@@ -441,12 +529,12 @@ function App() {
           </div>
           <div className="top-right">
             <div className="top-time">{time}</div>
-            <CurrencyDropdown currency={currency} onChange={setCurrency} />
+            <CurrencyDropdown currency={currency} onChange={setCurrency} currencies={currencies} />
           </div>
         </div>
 
-        {page === "alerts" && <AlertsPage subscriptions={subscriptions} currency={currency} />}
-        {page === "trends" && <SpendTrendsPage subscriptions={subscriptions} currency={currency} />}
+        {page === "alerts" && <AlertsPage subscriptions={subscriptions} currency={currency} currencies={currencies} />}
+        {page === "trends" && <SpendTrendsPage subscriptions={subscriptions} currency={currency} currencies={currencies} />}
         {page === "history" && <ScanHistoryPage subscriptions={subscriptions} />}
         {page === "settings" && <SettingsPage />}
 
@@ -473,7 +561,7 @@ function App() {
             )}
             {subscriptions.map(sub => {
               const daysLeft = getDaysLeft(sub.trialEndDate);
-              const price = convertPrice(sub.price, currency);
+              const price = convertPrice(sub.price, currency, currencies);
               return (
                 <div className="card" key={sub.id}>
                   <div className="card-info"><div className="card-name">{sub.service}</div><div className="card-subject">{sub.subject}</div></div>
@@ -483,7 +571,7 @@ function App() {
                     {daysLeft === null ? "—" : daysLeft <= 0 ? "EXPIRED" : `${daysLeft}d`}
                   </div>
                   <div className="card-conf">{sub.confidence ? `${sub.confidence}%` : "—"}</div>
-                  <button className="cancel-btn" onClick={() => window.open(`https://www.google.com/search?q=cancel+${sub.service}+subscription`, "_blank")}>Cancel</button>
+                  <CancelButton serviceName={sub.service} />
                 </div>
               );
             })}
